@@ -14,6 +14,18 @@ namespace ScriptSQLiteDB
     {
         public static string settingsLocation = "Settings.xml";
         public static Settings settings;
+        public static string[] sqliteSurroundInQuotesTypenames = {
+                                                         "CHARACTER",
+                                                         "VARCHAR",
+                                                         "VARYING CHARACTER",
+                                                         "NCHAR",
+                                                         "NATIVE CHARACTER",
+                                                         "NVARCHAR",
+                                                         "TEXT",
+                                                         "CLOB",
+                                                         "DATETIME",
+                                                         "DATE"
+                                                     };
 
         static void Main(string[] args)
         {
@@ -91,23 +103,26 @@ namespace ScriptSQLiteDB
                     List<string> tableNames = new List<string>();
                     sqlconn.Open();
                     SQLiteCommand sqlcmd = new SQLiteCommand(sqlconn);
-                    sqlcmd.CommandText = "SELECT * FROM sqlite_master WHERE type = 'table'";
+                    sqlcmd.CommandText = "SELECT tbl_name FROM sqlite_master WHERE type = 'table'";
                     SQLiteDataReader reader = sqlcmd.ExecuteReader();
                     while (reader.Read())
                     {
-                        tableNames.Add(reader["tbl_name"].ToString());
+                        tableNames.Add(reader[0].ToString());
                     }
                     reader.Close();
 
                     foreach (string table in tableNames)
                     {
                         StringBuilder sqlScript = new StringBuilder();
+                        //Dictionary containing string for the column name and bool for if the column is a text column
                         Dictionary<string, bool> colNames = new Dictionary<string, bool>();
                         sqlcmd.CommandText = "PRAGMA table_info(" + table + ")";
                         reader = sqlcmd.ExecuteReader();
                         while (reader.Read())
                         {
-                            colNames.Add(reader["name"].ToString(), reader["type"].ToString().ToUpper() == "TEXT");
+                            colNames.Add(reader["name"].ToString(),
+                                //Test against list of known quoted types in sqlite, matches things like NVARCHAR(50) using starts with
+                                sqliteSurroundInQuotesTypenames.Any(s => reader["type"].ToString().ToUpper().StartsWith(s)));
                         }
                         reader.Close();
 
@@ -119,7 +134,8 @@ namespace ScriptSQLiteDB
                             foreach (var col in colNames)
                             {
                                 if (col.Value)
-                                    sqlScript.Append("'" + reader[col.Key].ToString().Replace("'","&#39;") + "',");
+                                    //replace ' in text fields with &#39; (html encoding for ')
+                                    sqlScript.Append("'" + reader[col.Key].ToString().Replace("'", "&#39;") + "',");
                                 else
                                     sqlScript.Append(reader[col.Key] + ",");
                             }

@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <Settings>
-  <DatabaseName>archdev</DatabaseName>
-  <DatabaseLocation>C:\Users\Matthew\Desktop\database stuff\</DatabaseLocation>
+  <DatabaseName>Chinook_Sqlite.sqlite</DatabaseName>
+  <DatabaseLocation>C:\Users\Matthew\Downloads\sqlite-shell-win32-x86-3080900 (1)\</DatabaseLocation>
 </Settings>

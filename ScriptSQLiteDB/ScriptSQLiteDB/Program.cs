@@ -4,15 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data.SQLite;
-using System.Xml;
 using System.Diagnostics;
+using System.Xml.Serialization;
+using System.IO;
 
 namespace ScriptSQLiteDB
 {
     class Program
     {
-        public static string SettingsLocation = "Settings.xml";
-        public static string DatabaseLocation;
+        public static string settingsLocation = "Settings.xml";
+        public static Settings settings;
 
         static void Main(string[] args)
         {
@@ -83,26 +84,55 @@ namespace ScriptSQLiteDB
 
         private static void ConvertDatabaseToSqlScripts()
         {
-            
-        }
-
-        private static void ReadSettings()
-        {
             try
             {
-                using (XmlTextReader xmlr = new XmlTextReader(SettingsLocation))
+                using (SQLiteConnection sqlconn = new SQLiteConnection("Data Source=" + settings.DatabaseLocation + settings.DatabaseName))
                 {
-                    while (xmlr.Read())
+                    List<string> tableNames = new List<string>();
+                    sqlconn.Open();
+                    SQLiteCommand sqlcmd = new SQLiteCommand(sqlconn);
+                    sqlcmd.CommandText = "SELECT * FROM sqlite_master WHERE type = 'table'";
+                    SQLiteDataReader reader = sqlcmd.ExecuteReader();
+                    while (reader.Read())
                     {
-                        switch (xmlr.NodeType)
+                        tableNames.Add(reader["tbl_name"].ToString());
+                    }
+                    reader.Close();
+
+                    foreach (string table in tableNames)
+                    {
+                        StringBuilder sqlScript = new StringBuilder();
+                        Dictionary<string, bool> colNames = new Dictionary<string, bool>();
+                        sqlcmd.CommandText = "PRAGMA table_info(" + table + ")";
+                        reader = sqlcmd.ExecuteReader();
+                        while (reader.Read())
                         {
-                            case XmlNodeType.Element:
-                                break;
-                            case XmlNodeType.Text:
-                                break;
-                            case XmlNodeType.EndElement:
-                                break;
+                            colNames.Add(reader["name"].ToString(), reader["type"].ToString().ToUpper() == "TEXT");
                         }
+                        reader.Close();
+
+                        sqlcmd.CommandText = "SELECT * FROM " + table;
+                        reader = sqlcmd.ExecuteReader();
+                        while (reader.Read())
+                        {
+                            sqlScript.Append("INSERT INTO " + table + " VALUES (");
+                            foreach (var col in colNames)
+                            {
+                                if (col.Value)
+                                    sqlScript.Append("'" + reader[col.Key].ToString().Replace("'","&#39;") + "',");
+                                else
+                                    sqlScript.Append(reader[col.Key] + ",");
+                            }
+                            sqlScript.Remove(sqlScript.Length - 1, 1);
+                            sqlScript.Append(")\n");
+                        }
+                        reader.Close();
+
+                        using (StreamWriter output = new StreamWriter(settings.DatabaseLocation + table + ".sql", false))
+                        {
+                            output.Write(sqlScript.ToString());
+                        }
+
                     }
                 }
             }
@@ -114,19 +144,37 @@ namespace ScriptSQLiteDB
                 }
                 else
                 {
-                    Console.WriteLine("Error reading the settings file");
+                    Console.WriteLine("Error reading the database file");
+                }
+            }
+        }
+
+        private static void ReadSettings()
+        {
+            try
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(Settings));
+
+                StreamReader reader = new StreamReader(settingsLocation);
+                settings = (Settings)serializer.Deserialize(reader);
+                reader.Close();
+            }
+            catch (Exception e)
+            {
+                if (Debugger.IsAttached)
+                {
+                    Console.WriteLine(e.Message + "\n" + e.StackTrace);
+                }
+                else
+                {
+                    Console.WriteLine("Error deserializing the settings file");
                 }
             }
         }
 
         internal static void SetSettingsLocation(Option arg)
         {
-            SettingsLocation = arg.Parameter;
-        }
-
-        internal static void SetDatabaseLocation(Option arg)
-        {
-            DatabaseLocation = arg.Parameter;
+            settingsLocation = arg.Parameter;
         }
     }
 }

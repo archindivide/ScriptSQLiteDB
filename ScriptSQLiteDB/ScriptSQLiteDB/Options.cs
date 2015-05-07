@@ -28,14 +28,6 @@ namespace ScriptSQLiteDB
 
                     _options.Add(new Option()
                     {
-                        Name = "d",
-                        Description = "Used to define the location of the database file.",
-                        Example = @"Ex. -d C:\database.db",
-                        HasParameter = true
-                    });
-
-                    _options.Add(new Option()
-                    {
                         Name = "help",
                         Description = @"Displays this help section.",
                         HasParameter = false

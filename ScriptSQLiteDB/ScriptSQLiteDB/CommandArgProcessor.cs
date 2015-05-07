@@ -95,9 +95,6 @@ namespace ScriptSQLiteDB
                     case "s":
                         Program.SetSettingsLocation(arg);
                         break;
-                    case "d":
-                        Program.SetDatabaseLocation(arg);
-                        break;
                     default:
                         response = ExecutingArgumentsResponse.ErrorExecutingArguments;
                         break;
